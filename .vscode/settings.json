@@ -1,0 +1,10 @@
+{
+    "files.associations": {
+        "stdlib.h": "c",
+        "sched.h": "c",
+        "pthread.h": "c",
+        "os": "c",
+        "mm.h": "c",
+        "common.h": "c"
+    }
+}
