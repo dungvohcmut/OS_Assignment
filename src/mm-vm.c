@@ -16,6 +16,8 @@
  */
 int enlist_vm_freerg_list(struct mm_struct *mm, struct vm_rg_struct rg_elmt)
 {
+  struct vm_rg_struct *p_rg_elmt = malloc(sizeof(struct vm_rg_struct));
+  *p_rg_elmt = rg_elmt;
   struct vm_rg_struct *rg_node = mm->mmap->vm_freerg_list;
 
   if (rg_elmt.rg_start >= rg_elmt.rg_end)
@@ -24,7 +26,7 @@ int enlist_vm_freerg_list(struct mm_struct *mm, struct vm_rg_struct rg_elmt)
   if (rg_node != NULL)
     rg_elmt.rg_next = rg_node;
 
-  mm->mmap->vm_freerg_list = &rg_elmt;
+  mm->mmap->vm_freerg_list = p_rg_elmt;
   return 0;
 }
 
@@ -77,7 +79,7 @@ struct vm_rg_struct *get_symrg_byid(struct mm_struct *mm, int rgid)
 int __alloc(struct pcb_t *caller, int vmaid, int rgid, int size, int *alloc_addr)
 {
 #ifdef VMDBG
-  printf("Allocate %d bytes for %dth region\n", size, rgid);
+  printf("ALLOCATE %d bytes for %dth region\n", size, rgid);
 #endif
   /* Allocate at the toproof */
   struct vm_rg_struct rgnode;
@@ -88,6 +90,7 @@ int __alloc(struct pcb_t *caller, int vmaid, int rgid, int size, int *alloc_addr
     caller->mm->symrgtbl[rgid].rg_end = rgnode.rg_end;
 
     *alloc_addr = rgnode.rg_start;
+
     return 0;
   }
 #ifdef VMDBG
@@ -122,32 +125,24 @@ int __alloc(struct pcb_t *caller, int vmaid, int rgid, int size, int *alloc_addr
  */
 int __free(struct pcb_t *caller, int vmaid, int rgid)
 {
-  //struct vm_rg_struct rgnode;
-
+  struct vm_rg_struct rgnode = *get_symrg_byid(caller->mm, rgid);
+  rgnode.rg_next = NULL;
+#ifdef VMDBG
+  printf("FREE %dth region from %ld to %ld\n", rgid, rgnode.rg_start, rgnode.rg_end);
+#endif
   /* Check if the given rgid is within a valid range */
   if (rgid < 0 || rgid > PAGING_MAX_SYMTBL_SZ)
   {
     return -1;
   }
 
-  // /* TODO: Manage the collect freed region to freerg_list */
-  // /* Get memory region by ID using get_symrg_byid */
-  // rgnode = *get_symrg_byid(caller->mm, rgid);
-  // printf("Free memory region: %d - %d\n", rgnode.rg_start, rgnode.rg_end);
-  // // Find list frame of the region
-  // struct framephy_struct *list_frame = caller->mram->used_fp_list;
-  // while (list_frame != NULL)
-  // {
-  //   printf("Frame: %d\n", list_frame->fpn);
-  //   list_frame = list_frame->fp_next;
-  // }
+  /* TODO: Manage the collect freed region to freerg_list */
+  /* update symble region table */
+  caller->mm->symrgtbl[rgid].rg_start = 0;
+  caller->mm->symrgtbl[rgid].rg_end = 0;
 
-  // caller->mm->symrgtbl[rgid].rg_start = 0;
-  // caller->mm->symrgtbl[rgid].rg_end = 0;
-
-  // /*enlist the obsoleted memory region */
-  // enlist_vm_freerg_list(caller->mm, rgnode);
-  
+  /* enlist the obsoleted memory region */
+  enlist_vm_freerg_list(caller->mm, rgnode);
   return 0;
 }
 
