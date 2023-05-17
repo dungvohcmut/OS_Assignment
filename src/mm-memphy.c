@@ -159,7 +159,9 @@ int MEMPHY_get_freefp(struct memphy_struct *mp, int *retfpn)
 
    *retfpn = fp->fpn;
    mp->free_fp_list = fp->fp_next;
-
+#ifdef VMDBG
+   printf("Free frame is %d\n", *retfpn);
+#endif
    /* MEMPHY is iteratively used up until its exhausted
     * No garbage collector acting then it not been released
     */
@@ -178,8 +180,6 @@ int MEMPHY_dump(struct memphy_struct * mp)
    /*TODO dump memphy contnt mp->storage 
    *     for tracing the memory content
    */
-   for (int i = 0; i < mp->maxsz; i++)
-      printf("Address %d: %d\n", i, mp->storage[i]);
 
    return 0;
 }

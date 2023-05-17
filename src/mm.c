@@ -102,14 +102,16 @@ int vmap_page_range(struct pcb_t *caller,           // process call
   for (pgit = 0; pgit < pgnum; pgit++)
   {
     fpn = fpit->fpn;
-    uint32_t * pte = malloc(sizeof(uint32_t));
-    init_pte(pte, 1, fpn, 0, 0, 0, 0);
+    uint32_t pte;
+    init_pte(&pte, 1, fpn, 0, 0, 0, 0);
     caller->mm->pgd[pgn + pgit] = pte;
+#ifdef VMDBG
     unsigned long start = ret_rg->rg_end;
+#endif
     ret_rg->rg_end += PAGING_PAGESZ;
     fpit = fpit->fp_next;
 #ifdef VMDBG
-  printf("Mapped region [%d-%d] with frame page number %d\n", start, ret_rg->rg_end, fpn);
+  printf("Mapped region [%ld-%ld] with frame page number %d\n", start, ret_rg->rg_end, fpn);
 #endif
   }
   caller->mram->used_fp_list = frames;
@@ -138,8 +140,20 @@ int alloc_pages_range(struct pcb_t *caller, int req_pgnum, struct framephy_struc
     {
       newfp_str = malloc(sizeof(struct framephy_struct));
       newfp_str->fpn = fpn;
-      newfp_str->fp_next = *frm_lst;
-      *frm_lst = newfp_str;
+      newfp_str->fp_next = NULL;
+      if (*frm_lst == NULL) 
+      {
+        *frm_lst = newfp_str;
+      }
+      else 
+      {
+        struct framephy_struct *fpit = *frm_lst;
+        while (fpit->fp_next != NULL) 
+        {
+          fpit = fpit->fp_next;
+        }
+        fpit->fp_next = newfp_str;
+      }
 
       // Enqueue new usage page
       enlist_pgn_node(&caller->mm->fifo_pgn, pgit);
