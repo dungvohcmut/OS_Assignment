@@ -31,8 +31,6 @@ static struct ld_args{
 	unsigned long * start_time;
 #ifdef MLQ_SCHED
 	unsigned long * prio;
-#elif MLFQ_SCHED
-	unsigned long * prio;
 #endif
 } ld_processes;
 int num_processes;
@@ -113,8 +111,6 @@ static void * ld_routine(void * args) {
 		struct pcb_t * proc = load(ld_processes.path[i]);
 #ifdef MLQ_SCHED
 		proc->prio = ld_processes.prio[i];
-#elif MLFQ_SCHED
-		proc->prio = ld_processes.prio[i];
 #endif
 		while (current_time() < ld_processes.start_time[i]) {
 			next_slot(timer_id);
@@ -126,8 +122,13 @@ static void * ld_routine(void * args) {
 		proc->mswp = mswp;
 		proc->active_mswp = active_mswp;
 #endif
+#ifdef MLQ_SCHED
 		printf("\tLoaded a process at %s, PID: %d PRIO: %ld\n",
 			ld_processes.path[i], proc->pid, ld_processes.prio[i]);
+#elif MLFQ_SCHED
+		printf("\tLoaded a process at %s, PID: %d\n",
+			ld_processes.path[i], proc->pid);
+#endif
 		add_proc(proc);
 		free(ld_processes.path[i]);
 		i++;
@@ -176,9 +177,6 @@ static void read_config(const char * path) {
 #ifdef MLQ_SCHED
 	ld_processes.prio = (unsigned long*)
 		malloc(sizeof(unsigned long) * num_processes);
-#elif MLFQ_SCHED
-	ld_processes.prio = (unsigned long*)
-		malloc(sizeof(unsigned long) * num_processes);
 #endif
 	int i;
 	for (i = 0; i < num_processes; i++) {
@@ -189,7 +187,7 @@ static void read_config(const char * path) {
 #ifdef MLQ_SCHED
 		fscanf(file, "%lu %s %lu\n", &ld_processes.start_time[i], proc, &ld_processes.prio[i]);
 #elif MLFQ_SCHED
-		fscanf(file, "%lu %s %lu\n", &ld_processes.start_time[i], proc, &ld_processes.prio[i]);
+		fscanf(file, "%lu %s %lu\n", &ld_processes.start_time[i], proc);
 #else
 		fscanf(file, "%lu %s\n", &ld_processes.start_time[i], proc);
 #endif
