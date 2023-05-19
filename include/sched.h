@@ -3,10 +3,6 @@
 
 #include "common.h"
 
-#ifndef MLQ_SCHED
-#define MLQ_SCHED
-#endif
-
 int queue_empty(void);
 
 void init_scheduler(void);
