@@ -8,16 +8,11 @@ static struct queue_t run_queue;
 static pthread_mutex_t queue_lock;
 
 #ifdef MLQ_SCHED
-#define MAX_PRIO 140
 static struct queue_t mlq_ready_queue[MAX_PRIO];
 static unsigned int prio_state = 0;
 static unsigned int mlq_time_slot[MAX_PRIO];
 #elif MLFQ_SCHED
-#define MAX_PRIO 3
 static struct queue_t mlfq_ready_queue[MAX_PRIO];
-static struct queue_t mlfq_contain_queue;
-static unsigned int prio_state = 0;
-static unsigned int mlfq_time_slot[MAX_PRIO];
 #endif
 
 int queue_empty(void)
@@ -36,7 +31,7 @@ int queue_empty(void)
 	return (empty(&ready_queue) && empty(&run_queue));
 }
 
-void init_scheduler(void)
+void init_scheduler()
 {
 #ifdef MLQ_SCHED
 	int i;
@@ -51,7 +46,6 @@ void init_scheduler(void)
 	for (i = 0; i < MAX_PRIO; i++)
 	{
 		mlfq_ready_queue[i].size = 0;
-		mlfq_time_slot[i] = MAX_PRIO - i;
 	}
 #endif
 	ready_queue.size = 0;
@@ -152,34 +146,20 @@ struct pcb_t *get_mlfq_proc(void)
 	/*TODO: get a process from PRIORITY [ready_queue].
 	 * Remember to use lock to protect the queue.
 	 * */
+	unsigned int prio_state = 0;
 	pthread_mutex_lock(&queue_lock);
-	if (!empty(&mlfq_ready_queue[prio_state]) && mlfq_time_slot[prio_state] != 0)
-	{
+	if (!empty(&mlfq_ready_queue[prio_state])) {
 		proc = dequeue(&mlfq_ready_queue[prio_state]);
-		mlfq_time_slot[prio_state]--;
 	}
-	else
-	{
-		mlfq_time_slot[prio_state] = MAX_PRIO - prio_state;
+	else {
 		int i = (prio_state + 1) % MAX_PRIO;
-		if (i == 0) {
-			struct pcb_t *process = NULL;
-			while (!empty(&mlfq_contain_queue)) {
-				process = dequeue(&mlfq_contain_queue);
-				enqueue(&mlfq_ready_queue[0], process);
-			}
-		}
-		while (i != prio_state)
-		{
-			if (!empty(&mlfq_ready_queue[i]))
-			{
+		while (i != prio_state) {
+			if (!empty(&mlfq_ready_queue[i])) {
 				proc = dequeue(&mlfq_ready_queue[i]);
-				mlfq_time_slot[i]--;
 				prio_state = i;
 				break;
 			}
-			else
-			{
+			else {
 				i = (i + 1) % MAX_PRIO;
 			}
 		}
@@ -190,7 +170,6 @@ struct pcb_t *get_mlfq_proc(void)
 		if (!empty(&mlfq_ready_queue[prio_state]))
 		{
 			proc = dequeue(&mlfq_ready_queue[prio_state]);
-			mlfq_time_slot[prio_state]--;
 		}
 	}
 	pthread_mutex_unlock(&queue_lock);
@@ -200,7 +179,13 @@ struct pcb_t *get_mlfq_proc(void)
 void put_mlfq_proc(struct pcb_t *proc)
 {
 	pthread_mutex_lock(&queue_lock);
-	enqueue(&mlfq_ready_queue[0], proc);
+	if (proc->prio == MAX_PRIO - 1) {
+		enqueue(&mlfq_ready_queue[proc->prio], proc);
+	}
+	else {
+		proc->prio++;
+		enqueue(&mlfq_ready_queue[proc->prio], proc);
+	}
 	pthread_mutex_unlock(&queue_lock);
 }
 
@@ -208,7 +193,7 @@ void put_mlfq_proc(struct pcb_t *proc)
 void add_mlfq_proc(struct pcb_t *proc)
 {
 	pthread_mutex_lock(&queue_lock);
-	enqueue(&mlfq_ready_queue[0], proc);
+	enqueue(&mlfq_ready_queue[proc->prio], proc);
 	pthread_mutex_unlock(&queue_lock);
 }
 

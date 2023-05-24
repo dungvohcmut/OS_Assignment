@@ -9,7 +9,9 @@
 #include <string.h>
 #include <stdlib.h>
 
+#ifdef MLQ_SCHED
 static int time_slot;
+#endif
 static int num_cpus;
 static int done = 0;
 
@@ -65,8 +67,17 @@ static void * cpu_routine(void * args) {
 			time_left = 0;
 		}else if (time_left == 0) {
 			/* The process has done its job in current time slot */
+#ifdef MLQ_SCHED
 			printf("\tCPU %d: Put process %2d to run queue\n",
 				id, proc->pid);
+#elif MLFQ_SCHED
+			if (proc->prio < MAX_PRIO - 1) {
+				printf("\tCPU %d: Put process %2d to queue %d\n", id, proc->pid, proc->prio + 1);
+			}
+			else {
+				printf("\tCPU %d: Put process %2d to queue %d\n", id, proc->pid, proc->prio);
+			}
+#endif
 			put_proc(proc);
 			proc = get_proc();
 		}
@@ -82,14 +93,21 @@ static void * cpu_routine(void * args) {
 			next_slot(timer_id);
 			continue;
 		}else if (time_left == 0) {
-			printf("\tCPU %d: Dispatched process %2d\n",
-				id, proc->pid);
+			printf("\tCPU %d: Dispatched process %2d from queue %d\n",
+				id, proc->pid, proc->prio);
+#ifdef MLQ_SCHED
 			time_left = time_slot;
+#elif MLFQ_SCHED
+			time_left = proc->quantum[proc->prio];
+#endif
 		}
 		
 		/* Run current process */
 		run(proc);
 		time_left--;
+#ifdef MLFQ_SCHED
+		proc->quantum[proc->prio]--;
+#endif
 		next_slot(timer_id);
 	}
 	detach_event(timer_id);
@@ -111,6 +129,11 @@ static void * ld_routine(void * args) {
 		struct pcb_t * proc = load(ld_processes.path[i]);
 #ifdef MLQ_SCHED
 		proc->prio = ld_processes.prio[i];
+#elif MLFQ_SCHED
+		proc->prio = 0;
+		for (int i = 0; i < MAX_PRIO; i++) {
+			proc->quantum[i] = 1 << (i + 1);
+		}
 #endif
 		while (current_time() < ld_processes.start_time[i]) {
 			next_slot(timer_id);
@@ -147,7 +170,11 @@ static void read_config(const char * path) {
 		printf("Cannot find configure file at %s\n", path);
 		exit(1);
 	}
+#ifdef MLQ_SCHED
 	fscanf(file, "%d %d %d\n", &time_slot, &num_cpus, &num_processes);
+#elif MLFQ_SCHED
+	fscanf(file, "%d %d\n", &num_cpus, &num_processes);
+#endif
 	ld_processes.path = (char**)malloc(sizeof(char*) * num_processes);
 	ld_processes.start_time = (unsigned long*)
 		malloc(sizeof(unsigned long) * num_processes);
