@@ -79,7 +79,7 @@ struct vm_rg_struct *get_symrg_byid(struct mm_struct *mm, int rgid)
 int __alloc(struct pcb_t *caller, int vmaid, int rgid, int size, int *alloc_addr)
 {
 #ifdef VMDBG
-  printf("ALLOCATE %d bytes for %dth region\n", size, rgid);
+  printf("PROCESS ID %d - allocate %d bytes for %dth region\n", caller->pid, size, rgid);
 #endif
   /* Allocate at the toproof */
   struct vm_rg_struct rgnode;
@@ -90,7 +90,9 @@ int __alloc(struct pcb_t *caller, int vmaid, int rgid, int size, int *alloc_addr
     caller->mm->symrgtbl[rgid].rg_end = rgnode.rg_end;
 
     *alloc_addr = rgnode.rg_start;
-
+  #ifdef VMDBG
+    printf("New region: %ld - %ld\n", rgnode.rg_start, rgnode.rg_end);
+  #endif
     return 0;
   }
 #ifdef VMDBG
@@ -128,7 +130,7 @@ int __free(struct pcb_t *caller, int vmaid, int rgid)
   struct vm_rg_struct rgnode = *get_symrg_byid(caller->mm, rgid);
   rgnode.rg_next = NULL;
 #ifdef VMDBG
-  printf("FREE %dth region from %ld to %ld\n", rgid, rgnode.rg_start, rgnode.rg_end);
+  printf("PROCESS ID %d - free %dth region from %ld to %ld\n", caller->pid,rgid, rgnode.rg_start, rgnode.rg_end);
 #endif
   /* Check if the given rgid is within a valid range */
   if (rgid < 0 || rgid > PAGING_MAX_SYMTBL_SZ)
@@ -141,6 +143,8 @@ int __free(struct pcb_t *caller, int vmaid, int rgid)
   caller->mm->symrgtbl[rgid].rg_start = 0;
   caller->mm->symrgtbl[rgid].rg_end = 0;
 
+  /* update page table */
+  
   /* enlist the obsoleted memory region */
   enlist_vm_freerg_list(caller->mm, rgnode);
   return 0;
@@ -196,7 +200,7 @@ int pg_getpage(struct mm_struct *mm, int pgn, int *fpn, struct pcb_t *caller)
     /* Get free frame in MEMSWP */
     MEMPHY_get_freefp(caller->active_mswp, &swpfpn);
 
-    vicpte= caller->mm->pgd[vicpgn];
+    vicpte = caller->mm->pgd[vicpgn];
     vicfpn = PAGING_FPN(vicpgn); 
     /* Do swap frame from MEMRAM to MEMSWP and vice versa*/
     /* Copy victim frame to swap */
@@ -300,7 +304,7 @@ int pgread(
 
   destination = (uint32_t) data;
 #ifdef IODUMP
-  printf("read region=%d offset=%d value=%d\n", source, offset, data);
+  printf("PROCESS ID %d - read region=%d offset=%d value=%d\n", proc->pid, source, offset, data);
 #ifdef PAGETBL_DUMP
   print_pgtbl(proc, 0, -1); //print max TBL
 #endif
@@ -340,14 +344,16 @@ int pgwrite(
 		uint32_t offset)
 {
 #ifdef IODUMP
-  printf("write region=%d offset=%d value=%d\n", destination, offset, data);
+  printf("PROCESS ID %d - write region=%d offset=%d value=%d\n", proc->pid, destination, offset, data);
 #ifdef PAGETBL_DUMP
   print_pgtbl(proc, 0, -1); //print max TBL
 #endif
+#endif
+  int ret = __write(proc, 0, destination, offset, data);
+#ifdef IODUMP
   MEMPHY_dump(proc->mram);
 #endif
-
-  return __write(proc, 0, destination, offset, data);
+  return ret;
 }
 
 /*free_pcb_memphy - collect all memphy of pcb

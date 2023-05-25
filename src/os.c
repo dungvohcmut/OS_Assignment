@@ -58,26 +58,28 @@ static void * cpu_routine(void * args) {
                            next_slot(timer_id);
                            continue; /* First load failed. skip dummy load */
                         }
-		}else if (proc->pc == proc->code->size) {
+		}
+		else if (proc->pc == proc->code->size) {
 			/* The porcess has finish it job */
 			printf("\tCPU %d: Processed %2d has finished\n",
 				id ,proc->pid);
 			free(proc);
 			proc = get_proc();
 			time_left = 0;
-		}else if (time_left == 0) {
+		}
+		else if (time_left == 0) {
 			/* The process has done its job in current time slot */
-#ifdef MLQ_SCHED
+		#ifdef MLQ_SCHED
 			printf("\tCPU %d: Put process %2d to run queue\n",
 				id, proc->pid);
-#elif MLFQ_SCHED
+		#elif MLFQ_SCHED
 			if (proc->prio < MAX_PRIO - 1) {
 				printf("\tCPU %d: Put process %2d to queue %d\n", id, proc->pid, proc->prio + 1);
 			}
 			else {
 				printf("\tCPU %d: Put process %2d to queue %d\n", id, proc->pid, proc->prio);
 			}
-#endif
+		#endif
 			put_proc(proc);
 			proc = get_proc();
 		}
@@ -92,22 +94,23 @@ static void * cpu_routine(void * args) {
 			 * next time slots, just skip current slot */
 			next_slot(timer_id);
 			continue;
-		}else if (time_left == 0) {
-			printf("\tCPU %d: Dispatched process %2d from queue %d\n",
-				id, proc->pid, proc->prio);
-#ifdef MLQ_SCHED
+		}
+		else if (time_left == 0) {
+		#ifdef MLQ_SCHED
+			printf("\tCPU %d: Dispatched process %2d\n", id, proc->pid);
 			time_left = time_slot;
-#elif MLFQ_SCHED
+		#elif MLFQ_SCHED
+			printf("\tCPU %d: Dispatched process %2d from queue %d\n", id, proc->pid, proc->prio);
 			time_left = proc->quantum[proc->prio];
-#endif
+		#endif
 		}
 		
 		/* Run current process */
 		run(proc);
 		time_left--;
-#ifdef MLFQ_SCHED
+	#ifdef MLFQ_SCHED
 		proc->quantum[proc->prio]--;
-#endif
+	#endif
 		next_slot(timer_id);
 	}
 	detach_event(timer_id);
@@ -127,31 +130,31 @@ static void * ld_routine(void * args) {
 	printf("ld_routine\n");
 	while (i < num_processes) {
 		struct pcb_t * proc = load(ld_processes.path[i]);
-#ifdef MLQ_SCHED
+	#ifdef MLQ_SCHED
 		proc->prio = ld_processes.prio[i];
-#elif MLFQ_SCHED
+	#elif MLFQ_SCHED
 		proc->prio = 0;
 		for (int i = 0; i < MAX_PRIO; i++) {
 			proc->quantum[i] = 1 << (i + 1);
 		}
-#endif
+	#endif
 		while (current_time() < ld_processes.start_time[i]) {
 			next_slot(timer_id);
 		}
-#ifdef MM_PAGING
+	#ifdef MM_PAGING
 		proc->mm = malloc(sizeof(struct mm_struct));
 		init_mm(proc->mm, proc);
 		proc->mram = mram;
 		proc->mswp = mswp;
 		proc->active_mswp = active_mswp;
-#endif
-#ifdef MLQ_SCHED
+	#endif
+	#ifdef MLQ_SCHED
 		printf("\tLoaded a process at %s, PID: %d PRIO: %ld\n",
 			ld_processes.path[i], proc->pid, ld_processes.prio[i]);
-#elif MLFQ_SCHED
+	#elif MLFQ_SCHED
 		printf("\tLoaded a process at %s, PID: %d\n",
 			ld_processes.path[i], proc->pid);
-#endif
+	#endif
 		add_proc(proc);
 		free(ld_processes.path[i]);
 		i++;
