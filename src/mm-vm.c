@@ -242,7 +242,7 @@ int pg_getval(struct mm_struct *mm, int addr, BYTE *data, struct pcb_t *caller)
 
   int phyaddr = (fpn << PAGING_ADDR_FPN_LOBIT) + off;
 
-  MEMPHY_read(caller->mram,phyaddr, data);
+  MEMPHY_read(caller->mram, phyaddr, data);
 
   return 0;
 }
@@ -265,7 +265,7 @@ int pg_setval(struct mm_struct *mm, int addr, BYTE value, struct pcb_t *caller)
 
   int phyaddr = (fpn << PAGING_ADDR_FPN_LOBIT) + off;
 
-  MEMPHY_write(caller->mram,phyaddr, value);
+  MEMPHY_write(caller->mram, phyaddr, value);
 
    return 0;
 }
@@ -304,7 +304,7 @@ int pgread(
 
   destination = (uint32_t) data;
 #ifdef IODUMP
-  printf("PROCESS ID %d - read region=%d offset=%d value=%d\n", proc->pid, source, offset, data);
+  printf("read region=%d offset=%d value=%d\n", source, offset, data);
 #ifdef PAGETBL_DUMP
   print_pgtbl(proc, 0, -1); //print max TBL
 #endif
@@ -344,16 +344,16 @@ int pgwrite(
 		uint32_t offset)
 {
 #ifdef IODUMP
-  printf("PROCESS ID %d - write region=%d offset=%d value=%d\n", proc->pid, destination, offset, data);
+  printf("write region=%d offset=%d value=%d\n", destination, offset, data);
 #ifdef PAGETBL_DUMP
   print_pgtbl(proc, 0, -1); //print max TBL
 #endif
 #endif
-  int ret = __write(proc, 0, destination, offset, data);
+  int write = __write(proc, 0, destination, offset, data);
 #ifdef IODUMP
   MEMPHY_dump(proc->mram);
 #endif
-  return ret;
+  return write;
 }
 
 /*free_pcb_memphy - collect all memphy of pcb

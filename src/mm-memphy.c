@@ -101,7 +101,7 @@ int MEMPHY_write(struct memphy_struct * mp, int addr, BYTE data)
 {
    if (mp == NULL)
      return -1;
-
+   
    if (mp->rdmflg)
       mp->storage[addr] = data;
    else /* Sequential access device */
@@ -180,10 +180,16 @@ int MEMPHY_dump(struct memphy_struct * mp)
    /*TODO dump memphy contnt mp->storage 
    *     for tracing the memory content
    */
+   int count = 0;
    for (int i = 0; i < mp->maxsz; i++) {
       if (mp->storage[i] != 0) {
-         printf("mp->storage[%d] = %d\n", i, mp->storage[i]);
+         printf("Memory storage[%d] in frame %d = %d\n", i, i / 256, mp->storage[i]);
+         count++;
       }
+   }
+   if (count == 0) {
+      printf("Memory is empty\n");
+      return -1;
    }
    return 0;
 }

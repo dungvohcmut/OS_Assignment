@@ -23,9 +23,6 @@ int init_pte(uint32_t *pte,
   {
     if (swp == 0)
     { // Non swap ~ page online
-      if (fpn == 0)
-        return -1; // Invalid setting
-
       /* Valid setting with FPN */
       SETBIT(*pte, PAGING_PTE_PRESENT_MASK);
       CLRBIT(*pte, PAGING_PTE_SWAPPED_MASK);
@@ -111,7 +108,7 @@ int vmap_page_range(struct pcb_t *caller,           // process call
     ret_rg->rg_end += PAGING_PAGESZ;
     fpit = fpit->fp_next;
 #ifdef VMDBG
-  printf("Mapped region [%ld-%ld] with frame page number %d\n", start, ret_rg->rg_end, fpn);
+  printf("Mapped region [%ld-%ld] with frame page number %d - frame address %08x\n", start, ret_rg->rg_end, fpn, pte);
 #endif
   }
   caller->mram->used_fp_list = frames;
@@ -140,20 +137,8 @@ int alloc_pages_range(struct pcb_t *caller, int req_pgnum, struct framephy_struc
     {
       newfp_str = malloc(sizeof(struct framephy_struct));
       newfp_str->fpn = fpn;
-      newfp_str->fp_next = NULL;
-      if (*frm_lst == NULL) 
-      {
-        *frm_lst = newfp_str;
-      }
-      else 
-      {
-        struct framephy_struct *fpit = *frm_lst;
-        while (fpit->fp_next != NULL) 
-        {
-          fpit = fpit->fp_next;
-        }
-        fpit->fp_next = newfp_str;
-      }
+      newfp_str->fp_next = *frm_lst;
+      *frm_lst = newfp_str;
 
       // Enqueue new usage page
       enlist_pgn_node(&caller->mm->fifo_pgn, pgit);
